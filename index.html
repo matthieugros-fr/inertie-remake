@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inertie</title>
+<style>
+  :root {
+    --bg: #0b0d12; --panel: #141821; --text: #d8dde8; --muted: #8a93a6; --accent: #49c6ff; --line: #262c3a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  body { display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0 8px 0 0; letter-spacing: .08em; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { background: transparent; color: var(--muted); border: 0; padding: 6px 12px; cursor: pointer; font: inherit; }
+  .seg button.on { background: #1f2a3c; color: var(--text); }
+  .seg button:disabled { opacity: .45; cursor: default; }
+  header .btn { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  header .status { color: var(--muted); margin-left: auto; font-size: 12px; }
+  main { flex: 1; display: flex; min-height: 0; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 12px; }
+  #monitor { position: relative; background: #000; box-shadow: 0 0 0 1px #000, 0 10px 40px rgba(0,0,0,.6); }
+  #screen { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #hd, #neo { position: absolute; display: none; }
+  aside { width: 280px; border-left: 1px solid var(--line); padding: 14px 16px; overflow: auto; background: var(--panel); }
+  aside h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 14px 0 6px; }
+  aside h2:first-child { margin-top: 0; }
+  kbd { background: #222a38; border: 1px solid #35405a; border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font: 12px ui-monospace, Menlo, monospace; }
+  table { border-collapse: collapse; width: 100%; }
+  td { padding: 3px 0; vertical-align: top; }
+  td:first-child { white-space: nowrap; padding-right: 8px; }
+  .note { color: var(--muted); font-size: 12px; }
+  #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); z-index: 10; flex-direction: column; gap: 8px; }
+  #loading.hide { display: none; }
+  #err { color: #ff7a7a; max-width: 560px; text-align: center; }
+  #disques { position: fixed; inset: 0; z-index: 11; background: var(--bg); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 16px; border: 3px dashed transparent; }
+  #disques[hidden] { display: none; }
+  #disques.survol { border-color: #6aa9ff; }
+  #disques .petit { opacity: 0.6; font-size: 13px; }
+  #disques label.btn { cursor: pointer; }
+  @media (max-width: 800px) { aside { display: none; } }
+  #relance { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); z-index: 5;
+    background: rgba(0,0,0,0.75); color: #fff; font: 600 16px system-ui, sans-serif; padding: 8px 16px;
+    border-radius: 8px; pointer-events: none; animation: clign 1s steps(2) infinite; }
+  @keyframes clign { 50% { opacity: 0.35; } }
+</style>
+</head>
+<body>
+<div id="loading"><div>Chargement des fichiers du jeu…</div><div id="err"></div></div>
+<div id="disques" hidden>
+  <h2>Vos disquettes d'Inertie</h2>
+  <p>Ce remake fait tourner le jeu original de 1987, qui n'est pas fourni ici.<br>
+    Déposez les deux images disque du jeu (fichiers <b>.dsk</b>, disquette 1 et disquette 2).</p>
+  <label class="btn">Choisir les fichiers .dsk<input type="file" id="disques-choix" accept=".dsk" multiple hidden></label>
+  <p id="disques-etat"></p>
+  <p class="petit">Les fichiers restent dans votre navigateur : rien n'est envoyé sur Internet.<br>
+    Vous ne les déposerez qu'une fois sur cet ordinateur.</p>
+</div>
+<header>
+  <h1>INERTIE</h1>
+  <div class="seg" id="modes">
+    <button data-mode="original" class="on" title="Le code original de 1987 exécuté tel quel">Original CPC</button>
+    <button data-mode="hd" title="Même jeu, rendu modernisé">Amélioré</button>
+    <button data-mode="neo" title="Même jeu, direction artistique Akira">Néo-Tokyo</button>
+    <button data-mode="dog" title="Même jeu, version chiens qui aboient">Toutous</button>
+  </div>
+  <button class="btn" id="light" hidden>Éclairage : activé</button>
+  <button class="btn" id="sound">Son : activé</button>
+  <button class="btn" id="pause">Pause</button>
+  <button class="btn" id="reset">Redémarrer</button>
+  <span class="status" id="status"></span>
+</header>
+<main>
+  <div id="stage">
+    <div id="monitor"><canvas id="screen" width="640" height="200"></canvas><canvas id="hd"></canvas><canvas id="neo"></canvas><div id="relance" hidden>Appuyez sur une touche pour repartir</div></div>
+  </div>
+  <aside>
+    <h2>En vol</h2>
+    <table>
+      <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>tourner</td></tr>
+      <tr><td><kbd>↑</kbd></td><td>pousser</td></tr>
+      <tr><td><kbd>X</kbd> ou <kbd>⇧</kbd></td><td>tirer</td></tr>
+    </table>
+    <h2>À pied</h2>
+    <table>
+      <tr><td><kbd>Espace</kbd></td><td>posé sur une plateforme : sortir le cosmonaute</td></tr>
+      <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>marcher</td></tr>
+      <tr><td><kbd>↑</kbd></td><td>réacteur dorsal (on retombe en lâchant)</td></tr>
+      <tr><td><kbd>Entrée</kbd></td><td>juste au-dessus du vaisseau : rentrer</td></tr>
+      <tr><td><kbd>O</kbd> / <kbd>N</kbd></td><td>répondre à un savant</td></tr>
+    </table>
+    <h2>Posé</h2>
+    <table>
+      <tr><td><kbd>D</kbd></td><td>ordinateur de bord (puis <kbd>G</kbd> + <kbd>1</kbd>-<kbd>4</kbd> : guidage)</td></tr>
+      <tr><td><kbd>S</kbd> / <kbd>R</kbd></td><td>arrêter le guidage / revoir le radar</td></tr>
+    </table>
+    <h2>Après un crash</h2>
+    <p class="note">N'importe quelle touche relance le vaisseau.</p>
+    <h2>Règle</h2>
+    <p class="note">Le vaisseau ne doit rien toucher. On se pose, le cosmonaute va chercher disquettes et savants (attention à l'oxygène). L'énergie se recharge en survolant les « E ».<br>Menu : <kbd>1</kbd> jouer, puis le code de la planète (<kbd>J12C58</kbd> pour la première).</p>
+    <h2>À propos</h2>
+    <p class="note">Inertie, Ubi Soft 1987 : programmation Christophe Le Bouil, graphismes Patrick Daher, musique Xavier Talgorn.</p>
+    <p class="note">Mode « Original » : le code Z80 du jeu tourne dans une machine CPC simulée, avec les fichiers de vos disquettes. Rien n'est inclus dans ce dépôt.</p>
+  </aside>
+</main>
+<script src="emu/z80.js"></script>
+<script src="emu/cpc.js"></script>
+<script src="emu/sound.js"></script>
+<script src="emu/original.js"></script>
+<script src="emu/dsk.js"></script>
+<script src="app/keys.js"></script>
+<script src="app/hd.js"></script>
+<script src="app/state.js"></script>
+<script src="app/neo.js"></script>
+  <script src="app/dog.js"></script>
+<script src="app/neo_fx.js"></script>
+<script src="app/neo_audio.js"></script>
+<script src="app/main.js"></script>
+</body>
+</html>

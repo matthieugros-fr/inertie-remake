@@ -1,0 +1,7 @@
+# Fichiers du jeu original (disquettes de l'utilisateur, propriété d'Ubi Soft) : jamais publiés
+ref/
+*.dsk
+*.cdt
+*.zip
+.DS_Store
+__pycache__/

@@ -16,7 +16,7 @@
     0x2053: 'signal',
   };
   // Voix (ElevenLabs) : ordinateur de bord « canard » et cosmonaute marseillais
-  const VOICES = ['canard_energie', 'canard_crash', 'canard_refus', 'canard_gameover',
+  const VOICES = ['canard_energie', 'canard_refus', 'canard_gameover',
     'cosmo_bulle', 'cosmo_oui', 'cosmo_non', 'cosmo_mort',
     'canard_tir', 'canard_ecran', 'canard_clone', 'canard_inactif', 'canard_victoire',
     'cosmo_bavard1', 'cosmo_bavard2', 'cosmo_bavard3'];
@@ -247,7 +247,6 @@
         if (e === 'explode' && this.dog) this.insult(1600);
         if (e === 'explode') {
           if (this.passenger) { this.say('cosmo_mort', 500); this.passenger = false; }
-          else if (Math.random() < 0.5 && !this.speaking()) this.say('canard_crash', 900);
           else this.chatter('canard_clone', 0.5, 3500);
         }
       }
